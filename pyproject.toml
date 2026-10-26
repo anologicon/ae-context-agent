@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ae-context-agent"
+version = "0.2.0"
+description = "Local-first evidence and environment agent for Analytics Engineering"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ae-agent = "ae_agent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ae_agent*"]

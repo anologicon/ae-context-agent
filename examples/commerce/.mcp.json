@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "catalog-example": {
+      "url": "https://example.invalid/mcp"
+    }
+  }
+}
