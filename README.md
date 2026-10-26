@@ -8,6 +8,16 @@ O projeto ainda não é um agente autônomo completo. Um agente hospedeiro pode 
 o LLM e chamar as seis ferramentas MCP deste núcleo. A CLI funciona sem LLM.
 Não há treinamento de modelos ou modificação automática de código/skills nesta versão.
 
+## Usar no seu harness
+
+Consulte o [guia de instalação e integração](docs/harnesses.md) para **OpenCode**,
+**Claude Code**, **Claude Desktop** e outros clientes MCP locais. Inclui instalação
+via GitHub, configurações copiáveis e uma opção de uso apenas pela CLI.
+
+O mesmo workspace mantém seu conhecimento ao trocar de harness. As configurações
+são exemplos baseados na documentação dos clientes; ainda não foram testadas dentro
+de cada interface. Não existe comando `ae-agent setup` nesta versão.
+
 ## Começar sem instalar
 
 No diretório deste projeto:

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ae-context": {
+      "type": "stdio",
+      "command": "/absolute/path/to/ae-agent",
+      "args": ["--root", "/absolute/path/to/workspace", "serve"]
+    }
+  }
+}
