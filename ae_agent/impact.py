@@ -79,6 +79,8 @@ def queue(store, include_closed=False):
 
 
 def resolve(store, job_id, outcome, reviewer, note, evidence_source, quote):
+    from .security import redact
+    reviewer, note, quote = map(redact, (reviewer, note, quote))
     if outcome not in ('unchanged', 'updated', 'dismissed') or not reviewer.strip() or not note.strip():
         raise ValueError("Informe resultado, responsável e justificativa.")
     source = store.db.execute("SELECT * FROM sources WHERE id=? AND active=1", (evidence_source,)).fetchone()

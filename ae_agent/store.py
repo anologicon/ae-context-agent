@@ -1,10 +1,12 @@
 """Versioned sources and claims. Retrieval indexes are never the source of truth."""
 import hashlib
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .security import redact, sanitize
 from .impact import NODE_KINDS, invalidate, migrate, queue
 
 
@@ -18,8 +20,17 @@ def digest(text):
 
 class Store:
     def __init__(self, path):
+        if not hasattr(os, "O_NOFOLLOW"):
+            raise ValueError("Secure storage requires POSIX; use Linux, macOS or WSL.")
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        if any(p.is_symlink() for p in (path, *path.parents)):
+            raise ValueError("Symlinked knowledge storage is not permitted.")
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if path.exists() and (not path.is_file() or path.stat().st_nlink != 1):
+            raise ValueError("Knowledge storage must be a regular unshared file.")
+        fd = os.open(path, os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+        os.close(fd)
+        path.chmod(0o600)
         self.db = sqlite3.connect(path)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
@@ -57,9 +68,10 @@ class Store:
 
     def event(self, kind, payload):
         return self.db.execute("INSERT INTO events(type,payload,at) VALUES (?,?,?)",
-                        (kind, json.dumps(payload, ensure_ascii=False), now())).lastrowid
+                        (kind, json.dumps(sanitize(payload), ensure_ascii=False), now())).lastrowid
 
     def source(self, uri, title, content, kind="document", scope="project"):
+        uri, title, content, kind, scope = map(redact, (uri, title, content, kind, scope))
         sid, fingerprint = digest(uri)[:24], digest(content)
         old = self.db.execute("SELECT * FROM sources WHERE id=?", (sid,)).fetchone()
         if old and old["hash"] == fingerprint and old["active"]:
@@ -94,6 +106,7 @@ class Store:
 
     def propose(self, subject, relation, obj, source_id, quote, valid_from=None,
                 subject_kind="concept", object_kind="concept"):
+        subject, relation, obj, quote = map(redact, (subject, relation, obj, quote))
         source = self.db.execute("SELECT * FROM sources WHERE id=? AND active=1", (source_id,)).fetchone()
         if not source:
             raise ValueError("Fonte ativa não encontrada.")
@@ -120,6 +133,7 @@ class Store:
         return cid
 
     def review(self, cid, decision, reviewer):
+        reviewer = redact(reviewer)
         if decision not in ("validated", "rejected") or not reviewer.strip():
             raise ValueError("Decisão ou responsável inválido.")
         row = self.db.execute("""SELECT c.*, s.active, s.revision FROM claims c
@@ -150,6 +164,7 @@ class Store:
                 "revalidations": queue(self)}
 
     def inventory(self, capabilities):
+        capabilities = sanitize(capabilities)
         with self.db:
             previous = {r["id"] for r in self.db.execute("SELECT id FROM capabilities WHERE active=1")}
             self.db.execute("UPDATE capabilities SET active=0")

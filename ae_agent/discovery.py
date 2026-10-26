@@ -6,9 +6,9 @@ import re
 from pathlib import Path
 from typing import Protocol
 
-from .store import digest
+from .security import redact, safe_read
 
-IGNORED = {".git", ".ae-agent", ".venv", "venv", "node_modules", "__pycache__", "dist", "build"}
+IGNORED = {".git", ".ae-agent", ".venv", "venv", "node_modules", "__pycache__", "dist", "build", ".ssh", ".aws", ".azure", ".config", ".gnupg"}
 TEXT_SUFFIXES = {".md", ".txt", ".sql"}
 MCP_FILES = {".mcp.json", "mcp.json"}
 MAX_BYTES = 1_000_000
@@ -23,11 +23,6 @@ class Connector(Protocol):
     def scan(self, store): ...
 
 
-def redact(text):
-    text = re.sub(r"(?i)((?:password|passwd|api[_-]?key|access[_-]?token|secret)\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]", text)
-    text = re.sub(r"(?i)([a-z][a-z0-9+.-]*://)[^\s/@]+:[^\s/@]+@", r"\1[REDACTED]@", text)
-    text = re.sub(r"\b(?:sk-[A-Za-z0-9_-]{12,}|ghp_[A-Za-z0-9]{15,})\b", "[REDACTED]", text)
-    return text
 
 
 class LocalConnector:
@@ -38,7 +33,7 @@ class LocalConnector:
         patterns = []
         ignore = self.root / ".aeignore"
         if ignore.is_file() and not ignore.is_symlink():
-            patterns = [x.strip() for x in ignore.read_text().splitlines() if x.strip() and not x.startswith("#")]
+            patterns = [x.strip() for x in safe_read(ignore).splitlines() if x.strip() and not x.startswith("#")]
         capabilities, seen, errors = [], set(), []
         changed = 0
 
@@ -71,9 +66,11 @@ class LocalConnector:
                     if path.stat().st_size > MAX_BYTES:
                         errors.append(f"Arquivo acima do limite: {path.relative_to(self.root)}")
                         continue
-                    text = path.read_text(encoding="utf-8")
+                    text = safe_read(path)
                     if is_mcp:
                         config = json.loads(text)
+                        if not isinstance(config, dict):
+                            raise ValueError("Formato MCP inválido")
                         servers = config.get("mcpServers", config.get("servers", {}))
                         if not isinstance(servers, dict):
                             raise ValueError("Formato MCP inválido")

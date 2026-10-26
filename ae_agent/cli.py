@@ -5,13 +5,14 @@ import time
 from pathlib import Path
 
 from .discovery import LocalConnector, redact
+from .security import sanitize, safe_read, redact
 from .store import Store
 from .impact import NODE_KINDS, queue, resolve
 from . import __version__
 
 
 def emit(value):
-    print(json.dumps(value, ensure_ascii=False, indent=2), flush=True)
+    print(json.dumps(sanitize(value), ensure_ascii=False, indent=2), flush=True)
 
 
 def main(argv=None):
@@ -24,7 +25,8 @@ def main(argv=None):
     sub.add_parser("claims")
     sub.add_parser("graph")
     sub.add_parser("events")
-    sub.add_parser("serve", help="Servidor MCP local por stdio")
+    server = sub.add_parser("serve", help="Servidor MCP local por stdio")
+    server.add_argument("--allow-content", action="store_true", help="Autoriza envio de conteúdo local ao host MCP e propostas de regras")
     pending = sub.add_parser("revalidations", help="Fila de revisão de ativos afetados")
     pending.add_argument("--all", action="store_true")
     resolution = sub.add_parser("resolve", help="Encerrar um item com evidência atual")
@@ -67,7 +69,7 @@ def main(argv=None):
             emit({"workspace": str(root), "database": str(dbpath), "version": __version__})
         elif args.command == "serve":
             from .mcp import serve
-            serve(store, root)
+            serve(store, root, allow_content=args.allow_content)
         elif args.command == "scan":
             result = LocalConnector(root).scan(store)
             emit(result)
@@ -95,7 +97,7 @@ def main(argv=None):
             if uri.scheme not in {"https", "http", "confluence", "drive", "slack"} or uri.username or uri.password or uri.query or uri.fragment:
                 raise ValueError("Use URI estável http(s)/confluence/drive/slack, sem credenciais, query ou fragmento.")
             sid, revision, updated = store.source(args.uri, args.title or args.file.name,
-                redact(args.file.read_text(encoding="utf-8")), scope=str(root))
+                redact(safe_read(args.file)), scope=str(root))
             emit({"source_id": sid, "revision": revision, "changed": updated})
         elif args.command == "search":
             emit(store.search(args.query))
@@ -130,7 +132,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         return 130
     except (ValueError, OSError) as exc:
-        print(str(exc), file=sys.stderr)
+        print(redact(str(exc)), file=sys.stderr)
         return 1
     finally:
         if store:

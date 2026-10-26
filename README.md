@@ -1,5 +1,11 @@
 # AE Context Agent
 
+> **Segurança:** `serve` expõe apenas scan local e contagens por padrão. Para liberar
+> consultas, grafo, fila e propostas, acrescente `--allow-content` após `serve` nos
+> comandos/arrays abaixo. Isso autoriza envio de conteúdo ao host/modelo.
+> Veja os [guardrails e limites](SECURITY.md). O servidor exige Linux/macOS ou WSL;
+> Windows nativo não é suportado nesta versão.
+
 MVP local e open source de contexto para Analytics Engineering. Descobre o workspace,
 mantém fontes versionadas e um grafo de afirmações com evidências, e marca conhecimento
 como desatualizado quando a fonte muda. Python 3.10+, SQLite, sem dependências de runtime.

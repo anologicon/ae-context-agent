@@ -25,14 +25,14 @@ class MCPTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             responses = [json.loads(line) for line in result.stdout.splitlines()]
             self.assertEqual([r['id'] for r in responses], [1, 2, 3])
-            self.assertEqual(len(responses[1]['result']['tools']), 6)
+            self.assertEqual(len(responses[1]['result']['tools']), 2)
             self.assertFalse(responses[2]['result']['isError'])
 
     def test_rejects_unknown_or_malformed_tools_and_fabricated_evidence(self):
         with tempfile.TemporaryDirectory() as temp:
             store = Store(Path(temp) / 'db')
             self.addCleanup(store.close)
-            server = Server(store, Path(temp))
+            server = Server(store, Path(temp), allow_content=True)
             server.ready = True
             def call(name, args):
                 return server.handle({'jsonrpc':'2.0', 'id':1, 'method':'tools/call', 'params':{'name':name, 'arguments':args}})
